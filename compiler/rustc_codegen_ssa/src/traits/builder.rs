@@ -64,6 +64,23 @@ pub trait BuilderMethods<'a, 'tcx>:
         then_llbb: Self::BasicBlock,
         else_llbb: Self::BasicBlock,
     );
+
+    // Conditional branch with profiling information.
+    // The cold branch, if any, has much lower probability than the normal branch.
+    //
+    // This function is opt-in for back ends.
+    //
+    // The default implementation calls `cond_br`, i.e., it ignores the profiling information.
+    fn cond_br_with_prof(
+        &mut self,
+        cond: Self::Value,
+        then_llbb: Self::BasicBlock,
+        else_llbb: Self::BasicBlock,
+        _cold_br: Option<bool>,
+    ) {
+        self.cond_br(cond, then_llbb, else_llbb)
+    }
+
     fn switch(
         &mut self,
         v: Self::Value,

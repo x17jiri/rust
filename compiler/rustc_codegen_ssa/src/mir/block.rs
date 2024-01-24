@@ -327,18 +327,26 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
             let (test_value, target) = target_iter.next().unwrap();
             let lltrue = helper.llbb_with_cleanup(self, target);
             let llfalse = helper.llbb_with_cleanup(self, targets.otherwise());
+
+            let true_cold = self.mir[target].is_cold;
+            let false_cold = self.mir[targets.otherwise()].is_cold;
+            let cold_br = if true_cold != false_cold { Some(true_cold) } else { None };
+
             if switch_ty == bx.tcx().types.bool {
                 // Don't generate trivial icmps when switching on bool.
                 match test_value {
-                    0 => bx.cond_br(discr.immediate(), llfalse, lltrue),
-                    1 => bx.cond_br(discr.immediate(), lltrue, llfalse),
+                    0 => {
+                        let cold_br = cold_br.and_then(|t| Some(!t));
+                        bx.cond_br_with_prof(discr.immediate(), llfalse, lltrue, cold_br)
+                    }
+                    1 => bx.cond_br_with_prof(discr.immediate(), lltrue, llfalse, cold_br),
                     _ => bug!(),
                 }
             } else {
                 let switch_llty = bx.immediate_backend_type(bx.layout_of(switch_ty));
                 let llval = bx.const_uint_big(switch_llty, test_value);
                 let cmp = bx.icmp(IntPredicate::IntEQ, discr.immediate(), llval);
-                bx.cond_br(cmp, lltrue, llfalse);
+                bx.cond_br_with_prof(cmp, lltrue, llfalse, cold_br);
             }
         } else if self.cx.sess().opts.optimize == OptLevel::No
             && target_iter.len() == 2
@@ -363,7 +371,12 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
             let switch_llty = bx.immediate_backend_type(bx.layout_of(switch_ty));
             let llval = bx.const_uint_big(switch_llty, test_value1);
             let cmp = bx.icmp(IntPredicate::IntEQ, discr.immediate(), llval);
-            bx.cond_br(cmp, ll1, ll2);
+
+            let true_cold = self.mir[target1].is_cold;
+            let false_cold = self.mir[target2].is_cold;
+            let cold_br = if true_cold != false_cold { Some(true_cold) } else { None };
+
+            bx.cond_br_with_prof(cmp, ll1, ll2, cold_br);
         } else {
             bx.switch(
                 discr.immediate(),

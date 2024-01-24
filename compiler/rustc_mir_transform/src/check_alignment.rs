@@ -142,6 +142,7 @@ fn split_block(
         statements: block_data.statements.split_off(location.statement_index),
         terminator: block_data.terminator.take(),
         is_cleanup: block_data.is_cleanup,
+        is_cold: block_data.is_cold,
     };
 
     basic_blocks.push(new_block)

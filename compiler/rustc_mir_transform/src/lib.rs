@@ -82,6 +82,7 @@ mod elaborate_box_derefs;
 mod elaborate_drops;
 mod errors;
 mod ffi_unwind_calls;
+mod find_cold_blocks;
 mod function_item_references;
 mod gvn;
 pub mod inline;
@@ -625,6 +626,8 @@ fn run_optimization_passes<'tcx>(tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {
             // Cleanup for human readability, off by default.
             &prettify::ReorderBasicBlocks,
             &prettify::ReorderLocals,
+            // Find cold blocks
+            &find_cold_blocks::FindColdBlocks,
             // Dump the end result for testing and debugging purposes.
             &dump_mir::Marker("PreCodegen"),
         ],

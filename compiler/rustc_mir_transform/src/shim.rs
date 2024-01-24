@@ -193,6 +193,7 @@ fn build_drop_shim<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId, ty: Option<Ty<'tcx>>)
             statements: vec![],
             terminator: Some(Terminator { source_info, kind }),
             is_cleanup: false,
+            is_cold: false,
         })
     };
     block(&mut blocks, TerminatorKind::Goto { target: return_block });
@@ -367,6 +368,7 @@ fn build_thread_local_shim<'tcx>(tcx: TyCtxt<'tcx>, instance: ty::InstanceDef<'t
         }],
         terminator: Some(Terminator { source_info, kind: TerminatorKind::Return }),
         is_cleanup: false,
+        is_cold: false,
     });
 
     new_body(
@@ -455,6 +457,7 @@ impl<'tcx> CloneShimBuilder<'tcx> {
             statements,
             terminator: Some(Terminator { source_info, kind }),
             is_cleanup,
+            is_cold: false,
         })
     }
 
@@ -807,6 +810,7 @@ fn build_call_shim<'tcx>(
             statements,
             terminator: Some(Terminator { source_info, kind }),
             is_cleanup,
+            is_cold: false,
         })
     };
 
@@ -930,6 +934,7 @@ pub fn build_adt_ctor(tcx: TyCtxt<'_>, ctor_id: DefId) -> Body<'_> {
         statements: vec![statement],
         terminator: Some(Terminator { source_info, kind: TerminatorKind::Return }),
         is_cleanup: false,
+        is_cold: false,
     };
 
     let source = MirSource::item(ctor_id);
@@ -977,6 +982,7 @@ fn build_fn_ptr_addr_shim<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId, self_ty: Ty<'t
         statements,
         terminator: Some(Terminator { source_info, kind: TerminatorKind::Return }),
         is_cleanup: false,
+        is_cold: false,
     };
     let source = MirSource::from_instance(ty::InstanceDef::FnPtrAddrShim(def_id, self_ty));
     new_body(source, IndexVec::from_elem_n(start_block, 1), locals, sig.inputs().len(), span)

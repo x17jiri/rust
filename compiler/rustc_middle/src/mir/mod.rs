@@ -1230,11 +1230,16 @@ pub struct BasicBlockData<'tcx> {
     /// generated (particularly for MSVC cleanup). Unwind blocks must
     /// only branch to other unwind blocks.
     pub is_cleanup: bool,
+
+    // If true, this basic block is on the cold (slow) path.
+    // This should always be initialized to false.
+    // It may be changed to true by the FindColdBlocks pass.
+    pub is_cold: bool,
 }
 
 impl<'tcx> BasicBlockData<'tcx> {
     pub fn new(terminator: Option<Terminator<'tcx>>) -> BasicBlockData<'tcx> {
-        BasicBlockData { statements: vec![], terminator, is_cleanup: false }
+        BasicBlockData { statements: vec![], terminator, is_cleanup: false, is_cold: false }
     }
 
     /// Accessor for terminator.

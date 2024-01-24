@@ -298,7 +298,8 @@ macro_rules! make_mir_visitor {
                 let BasicBlockData {
                     statements,
                     terminator,
-                    is_cleanup: _
+                    is_cleanup: _,
+                    is_cold: _,
                 } = data;
 
                 let mut index = 0;

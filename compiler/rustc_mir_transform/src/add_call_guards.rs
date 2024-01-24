@@ -61,6 +61,7 @@ impl AddCallGuards {
                     let call_guard = BasicBlockData {
                         statements: vec![],
                         is_cleanup: block.is_cleanup,
+                        is_cold: false,
                         terminator: Some(Terminator {
                             source_info,
                             kind: TerminatorKind::Goto { target: *destination },
