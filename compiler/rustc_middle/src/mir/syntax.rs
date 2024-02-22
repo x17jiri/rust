@@ -26,6 +26,7 @@ use rustc_span::symbol::Symbol;
 use rustc_span::Span;
 use rustc_target::asm::InlineAsmRegOrRegClass;
 use smallvec::SmallVec;
+use thin_vec::ThinVec;
 
 /// Represents the "flavors" of MIR.
 ///
@@ -845,6 +846,12 @@ pub struct SwitchTargets {
     // However we’ve decided to keep this as-is until we figure a case
     // where some other approach seems to be strictly better than other.
     pub(super) targets: SmallVec<[BasicBlock; 2]>,
+
+    // Targets that are marked 'cold', if any.
+    // This is either an empty vector or has the same length as `targets`.
+    // It contains a boolean for each target, indicating whether the target is cold.
+    // When cold_targets is empty, all targets are considered to be NOT cold.
+    pub(super) cold_targets: ThinVec<bool>,
 }
 
 /// Action to be taken when a stack unwind happens.

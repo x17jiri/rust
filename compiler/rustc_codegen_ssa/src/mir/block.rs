@@ -324,14 +324,25 @@ impl<'a, 'tcx, Bx: BuilderMethods<'a, 'tcx>> FunctionCx<'a, 'tcx, Bx> {
         if target_iter.len() == 1 {
             // If there are two targets (one conditional, one fallback), emit `br` instead of
             // `switch`.
+            let test_value_cold = targets.cold_targets_iter().next();
             let (test_value, target) = target_iter.next().unwrap();
             let lltrue = helper.llbb_with_cleanup(self, target);
             let llfalse = helper.llbb_with_cleanup(self, targets.otherwise());
             if switch_ty == bx.tcx().types.bool {
                 // Don't generate trivial icmps when switching on bool.
                 match test_value {
-                    0 => bx.cond_br(discr.immediate(), llfalse, lltrue),
-                    1 => bx.cond_br(discr.immediate(), lltrue, llfalse),
+                    0 => {
+                        // If 0 is cold, then the expected value is 1.
+                        // So we can use test_val_cold as 'expect'
+                        let expect = test_value_cold;
+                        bx.cond_br_with_expect(discr.immediate(), llfalse, lltrue, expect);
+                    }
+                    1 => {
+                        // If 1 is cold, then the expected value is 0.
+                        // So we can use !test_val_cold as 'expect'
+                        let expect = test_value_cold.and_then(|t| Some(!t));
+                        bx.cond_br_with_expect(discr.immediate(), lltrue, llfalse, expect);
+                    }
                     _ => bug!(),
                 }
             } else {

@@ -78,6 +78,7 @@ mod elaborate_box_derefs;
 mod elaborate_drops;
 mod errors;
 mod ffi_unwind_calls;
+mod find_cold_paths;
 mod function_item_references;
 mod gvn;
 pub mod inline;
@@ -614,6 +615,8 @@ fn run_optimization_passes<'tcx>(tcx: TyCtxt<'tcx>, body: &mut Body<'tcx>) {
             &multiple_return_terminators::MultipleReturnTerminators,
             &deduplicate_blocks::DeduplicateBlocks,
             &large_enums::EnumSizeOpt { discrepancy: 128 },
+            // Find cold blocks
+            &find_cold_paths::FindColdPaths,
             // Some cleanup necessary at least for LLVM and potentially other codegen backends.
             &add_call_guards::CriticalCallEdges,
             // Cleanup for human readability, off by default.

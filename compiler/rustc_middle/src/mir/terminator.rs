@@ -6,6 +6,7 @@ use super::TerminatorKind;
 use rustc_data_structures::packed::Pu128;
 use rustc_macros::HashStable;
 use std::slice;
+use thin_vec::ThinVec;
 
 use super::*;
 
@@ -18,13 +19,17 @@ impl SwitchTargets {
         let (values, mut targets): (SmallVec<_>, SmallVec<_>) =
             targets.map(|(v, t)| (Pu128(v), t)).unzip();
         targets.push(otherwise);
-        Self { values, targets }
+        Self { values, targets, cold_targets: ThinVec::new() }
     }
 
     /// Builds a switch targets definition that jumps to `then` if the tested value equals `value`,
     /// and to `else_` if not.
     pub fn static_if(value: u128, then: BasicBlock, else_: BasicBlock) -> Self {
-        Self { values: smallvec![Pu128(value)], targets: smallvec![then, else_] }
+        Self {
+            values: smallvec![Pu128(value)],
+            targets: smallvec![then, else_],
+            cold_targets: ThinVec::new(),
+        }
     }
 
     /// Inverse of `SwitchTargets::static_if`.
@@ -56,6 +61,14 @@ impl SwitchTargets {
         SwitchTargetsIter { inner: iter::zip(&self.values, &self.targets) }
     }
 
+    /// If none of the targets are cold, returns an empty iterator.
+    /// If at least one target is cold, returns an iterator of the same length as `targets`,
+    /// where each element is `true` if the corresponding target is cold.
+    #[inline]
+    pub fn cold_targets_iter(&self) -> std::iter::Copied<std::slice::Iter<'_, bool>> {
+        self.cold_targets.iter().copied()
+    }
+
     /// Returns a slice with all possible jump targets (including the fallback target).
     #[inline]
     pub fn all_targets(&self) -> &[BasicBlock] {
@@ -73,6 +86,32 @@ impl SwitchTargets {
     #[inline]
     pub fn target_for_value(&self, value: u128) -> BasicBlock {
         self.iter().find_map(|(v, t)| (v == value).then_some(t)).unwrap_or_else(|| self.otherwise())
+    }
+
+    // Uses information about which BBs are cold to fill in the `cold_targets` field.
+    // This is called from the MIR pass `find_cold_paths`.
+    pub fn fill_cold_targets(&mut self, cold_blocks: &IndexVec<BasicBlock, bool>) {
+        self.cold_targets.clear();
+        let mut all_cold = true;
+        for i in 0..self.targets.len() {
+            // if the target is a cold BB
+            if cold_blocks[self.targets[i]] {
+                // if we haven't allocated the cold_targets vec yet, do so
+                if self.cold_targets.is_empty() {
+                    self.cold_targets.resize(self.targets.len(), false);
+                }
+
+                // mark the target as cold
+                self.cold_targets[i] = true;
+            } else {
+                all_cold = false;
+            }
+        }
+
+        // if all targets are cold, it is equivalent to having no cold targets
+        if all_cold {
+            self.cold_targets = ThinVec::new();
+        }
     }
 }
 
